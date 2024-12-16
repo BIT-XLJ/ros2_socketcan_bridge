@@ -45,7 +45,7 @@ class ros2socketcan : public rclcpp::Node
          * @brief constructor for ros2socketcan class
          * @details Within the constructor the topic and service naming is done. 
          */
-        ros2socketcan(const std::string& can_device_name);//boost::asio::io_service& ios);
+        ros2socketcan(const std::string& can_device_name, const std::string& node_name);//boost::asio::io_service& ios);
         /**
          * @brief destructor
          */
@@ -54,16 +54,11 @@ class ros2socketcan : public rclcpp::Node
     private:
         rclcpp::TimerBase::SharedPtr timer_;
         rclcpp::Publisher<can_msgs::msg::Frame>::SharedPtr publisher_;
-        rclcpp::Publisher<can_msgs::msg::Frame>::SharedPtr test_pub_;
         rclcpp::Subscription<can_msgs::msg::Frame>::SharedPtr subscription_;
-        
-        can_msgs::msg::Frame current_frame;
-        
         /**
          * @brief The CanSendConfirm function is needed by the .async_write_some function and is called as confirmation for a successfull send process.
          */
-        void CanSendConfirm();
-        
+        void CanSendConfirm();              
         /**
          * @brief The CanPublisher is listening to a ROS 2 Topic and calls the CanSend Method.
          */

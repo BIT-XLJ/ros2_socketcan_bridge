@@ -1,17 +1,52 @@
 #!/bin/bash
 
-# 1. 配置串口设备为 CAN 设备
-echo "Setting up CAN interface using slcand..."
-sudo slcand -o -c -s8 /dev/ttyACM1 can1
+# 定义配置CAN接口的函数
+configure_can_interface() {
+    local device=$1
+    local can_interface=$2
 
-# 2. 启动 can0 接口
-echo "Bringing up the CAN interface (can1)..."
-sudo ifconfig can1 up
+    echo "Setting up CAN interface using slcand on $device..."
+    sudo slcand -o -c -s8 $device $can_interface
 
-# 3. 设置 CAN 接口的发送队列长度
-echo "Setting txqueuelen for can1 to 10000..."
-sudo ifconfig can1 txqueuelen 10000
+    echo "Bringing up the CAN interface ($can_interface)..."
+    sudo ifconfig $can_interface up
 
-# 打印接口状态
-echo "CAN interface can1 is up and running with txqueuelen set to 10000."
-ifconfig can1
+    echo "Setting txqueuelen for $can_interface to 100000..."
+    sudo ifconfig $can_interface txqueuelen 100000
+
+    echo "CAN interface $can_interface is up and running with txqueuelen set to 100000."
+    ifconfig $can_interface
+}
+
+# 检查 /dev/ttyACM0 是否存在
+if [ -e /dev/ttyACM0 ]; then
+    echo "/dev/ttyACM0 found. Proceeding with CAN setup..."
+    configure_can_interface /dev/ttyACM0 can0
+else
+    echo "Error: /dev/ttyACM0 not found."
+fi
+
+# 检查 /dev/ttyACM1 是否存在
+if [ -e /dev/ttyACM1 ]; then
+    echo "/dev/ttyACM1 found. Proceeding with CAN setup..."
+    configure_can_interface /dev/ttyACM1 can1
+else
+    echo "Error: /dev/ttyACM1 not found."
+fi
+
+# 检查 /dev/ttyACM2 是否存在
+if [ -e /dev/ttyACM2 ]; then
+    echo "/dev/ttyACM2 found. Proceeding with CAN setup..."
+    configure_can_interface /dev/ttyACM2 can2
+else
+    echo "Error: /dev/ttyACM2 not found."
+fi
+
+# 检查 /dev/ttyACM3 是否存在
+if [ -e /dev/ttyACM3 ]; then
+    echo "/dev/ttyACM3 found. Proceeding with CAN setup..."
+    configure_can_interface /dev/ttyACM3 can3
+else
+    echo "Error: /dev/ttyACM3 not found."
+fi
+

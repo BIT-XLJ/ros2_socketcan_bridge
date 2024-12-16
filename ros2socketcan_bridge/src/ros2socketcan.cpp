@@ -9,7 +9,10 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 
-ros2socketcan::ros2socketcan(const std::string& can_device_name) : Node("ros2socketcan"), stream(ios), signals(ios, SIGINT, SIGTERM)
+ros2socketcan::ros2socketcan(const std::string& can_device_name, const std::string& node_name)
+    : Node(node_name),  // 使用传入的自定义节点名称
+      stream(ios), 
+      signals(ios, SIGINT, SIGTERM)
 {
     // 使用传入的can_device_name参数
     this->declare_parameter("CAN_INTERFACE", can_device_name);
@@ -17,11 +20,9 @@ ros2socketcan::ros2socketcan(const std::string& can_device_name) : Node("ros2soc
 
     RCLCPP_INFO(this->get_logger(), "CAN_INTERFACE: %s", can_socket.c_str());
     topicname_receive << "CAN/" << can_socket << "/"
-                      << "receive";
+                      << "receive"; //从can总线接收到信息
     topicname_transmit << "CAN/" << can_socket << "/"
-                       << "transmit";
-
-    rclcpp::executors::MultiThreadedExecutor exec;
+                       << "transmit"; //向can总线发送信息
 
     publisher_ = this->create_publisher<can_msgs::msg::Frame>(topicname_receive.str(), 10);
     subscription_ = this->create_subscription<can_msgs::msg::Frame>(topicname_transmit.str(), 100, std::bind(&ros2socketcan::CanPublisher, this, _1));
@@ -39,8 +40,8 @@ ros2socketcan::ros2socketcan(const std::string& can_device_name) : Node("ros2soc
 
     stream.assign(natsock);
 
-    RCLCPP_INFO(this->get_logger(), (std::string("ROS 2 to CAN-Bus topic:") + subscription_->get_topic_name()).c_str());
-    RCLCPP_INFO(this->get_logger(), (std::string("CAN-Bus to ROS 2 topic:") + publisher_->get_topic_name()).c_str());
+    RCLCPP_INFO(this->get_logger(), (std::string("ROS 2 node ") + node_name + std::string(" to CAN-Bus topic:") + subscription_->get_topic_name()).c_str());
+    RCLCPP_INFO(this->get_logger(), (std::string("CAN-Bus to ROS 2 node ") + node_name + std::string(" topic:") + publisher_->get_topic_name()).c_str());
 
     stream.async_read_some(boost::asio::buffer(&rec_frame, sizeof(rec_frame)), std::bind(&ros2socketcan::CanListener, this, std::ref(rec_frame), std::ref(stream)));
     signals.async_wait(std::bind(&ros2socketcan::stop, this));
@@ -50,6 +51,7 @@ ros2socketcan::ros2socketcan(const std::string& can_device_name) : Node("ros2soc
     RCLCPP_DEBUG(this->get_logger(),"Thread started");
     bt.detach();
 }
+
 void ros2socketcan::stop()
 {
     RCLCPP_INFO(this->get_logger(), "End of Listener Thread. Please press strg+c again to stop the whole program.\n");
@@ -89,15 +91,7 @@ void ros2socketcan::CanSend(const can_msgs::msg::Frame msg)
     {
         frame1.data[i] = msg.data[i];
     }
-    
-    std::stringstream out;
-    out << std::string("S | ") << std::to_string(frame1.can_id) << std::string("| ");
-    for (int j = 0; j < (int)frame1.can_dlc; j++)
-    {
-        out << std::to_string(frame1.data[j]) << std::string(" ");
-    }
-    out << std::endl;
-    RCLCPP_INFO(this->get_logger(), out.str().c_str());
+
     stream.async_write_some(boost::asio::buffer(&frame1, sizeof(frame1)), std::bind(&ros2socketcan::CanSendConfirm, this));
 }
 
@@ -114,50 +108,24 @@ void ros2socketcan::CanPublisher(const can_msgs::msg::Frame::SharedPtr msg)
 
     CanSend(msg1);
 }
-
 void ros2socketcan::CanSendConfirm(void)
 {
-    RCLCPP_DEBUG(this->get_logger(), "Message sent");
+    
 }
-
 // Listen for CAN messages
 void ros2socketcan::CanListener(struct can_frame &rec_frame, boost::asio::posix::basic_stream_descriptor<> &stream)
 {
     can_msgs::msg::Frame frame;
 
-    std::stringstream s;
-
     frame.id = rec_frame.can_id;
     frame.dlc = int(rec_frame.can_dlc);
 
-    s << std::string("R | ") << std::to_string(rec_frame.can_id) << std::string(" | ");
     for (int i = 0; i < rec_frame.can_dlc; i++)
     {
         frame.data[i] = rec_frame.data[i];
-        s << std::to_string(rec_frame.data[i]);
     }
-    current_frame = frame;
-    s << " | ";
 
-    for (int j = 0; j < (int)rec_frame.can_dlc; j++)
-    {
-        s << std::to_string(rec_frame.data[j]) << " ";
-    }
-    s << std::endl;
-    RCLCPP_INFO(this->get_logger(), s.str().c_str());
     publisher_->publish(frame);
 
     stream.async_read_some(boost::asio::buffer(&rec_frame, sizeof(rec_frame)), std::bind(&ros2socketcan::CanListener, this, std::ref(rec_frame), std::ref(stream)));
 }
-
-// // Main method of the node
-// int main(int argc, char *argv[])
-// {
-//     std::cout << programdescr << std::endl;
-//     rclcpp::init(argc, argv);
-//     auto node = std::make_shared<ros2socketcan>();
-//     rclcpp::spin(node);
-//     // Free up any resources being used by the node
-//     rclcpp::shutdown();
-//     return 0;
-// }
