@@ -4,6 +4,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include <cmath>
 #include <cstdint>
+#include "std_msgs/msg/int32.hpp"
 class CanNode : public rclcpp::Node
 {
 public:
@@ -14,6 +15,9 @@ public:
         topic_transmit = std::string("CAN/") + can_node_name + std::string("/transmit");
         subscribe_can_msg = this->create_subscription<can_msgs::msg::Frame>(topic_receive, 100, std::bind(&CanNode::CanSubscribe, this, std::placeholders::_1));
         publish_can_msg = this->create_publisher<can_msgs::msg::Frame>(topic_transmit, 10);
+        motor_init_sub = this->create_subscription<std_msgs::msg::Int32>(
+            "motor_init", 10,  // 话题名，队列大小
+            std::bind(&CanNode::topic_callback, this, std::placeholders::_1));
     }
 
     void init_motor(int ID, bool reset_zero_pos)
@@ -149,6 +153,14 @@ private:
     std::string topic_transmit;
     rclcpp::Subscription<can_msgs::msg::Frame>::SharedPtr subscribe_can_msg;
     rclcpp::Publisher<can_msgs::msg::Frame>::SharedPtr publish_can_msg;
+    rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr motor_init_sub; 
+
+    void topic_callback(const std_msgs::msg::Int32::SharedPtr msg)
+    {
+        this->init_motor(3,false);
+        this->enable_all_motors();
+        this->mit_mode_send(3, 0.0, 0.0, 100 * M_PI, 2.00, 2.5);  // 延迟后执行发送
+    }
 
     void CanSubscribe(const can_msgs::msg::Frame::SharedPtr msg) //从can总线接收到信息，在这里处理
     {
@@ -178,6 +190,5 @@ private:
             std::cout << "电机Q轴电流: " << current << " A" << std::endl;
         }
     }
-    
     rclcpp::TimerBase::SharedPtr timer_;     // 定时器
 };

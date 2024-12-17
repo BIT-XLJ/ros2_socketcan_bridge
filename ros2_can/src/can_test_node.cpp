@@ -17,9 +17,6 @@ int main(int argc, char *argv[])
   {
     executor.add_node(ros2_socket_can_node);
     executor.add_node(can_test_node);
-    can_test_node->init_motor(3,false);
-    can_test_node->enable_all_motors();
-    can_test_node->mit_mode_send(3, 0.0, 0.0, 100 * M_PI, 2.00, 1.0);  // 延迟后执行发送
     executor.spin();
   } 
   catch (const std::exception &e) 
