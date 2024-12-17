@@ -80,7 +80,7 @@ public:
         can_msg.id = 0x038;     
         can_msg.data = {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02};      //使能
         publish_can_msg->publish(can_msg);
-        rclcpp::sleep_for(std::chrono::seconds(3));
+        rclcpp::sleep_for(std::chrono::seconds(1));
     }
 
     void mit_mode_send(int ID, double Kp, double Kd, double p_des, double v_des, double t_ff) //输入position单位是rad，范围是[-pi,pi];输入velocity单位是rad/s；输入力矩需要转换为电流
@@ -128,7 +128,7 @@ public:
         // 对Kd进行限幅，范围为[0, 5]
         Kd = std::fmax(std::fmin(Kd, 5.0), 0.0);
 
-        uint16_t p_des_CAN = static_cast<uint16_t>(std::round((position + 100.0 * M_PI) / (200.0 * M_PI) * 65536));
+        uint16_t p_des_CAN = static_cast<uint16_t>(std::round((position + 100.0 * M_PI) / (200.0 * M_PI) * 65536));  //位置分辨率为0.55°
         uint16_t v_des_CAN = static_cast<uint16_t>(std::round((velocity + 20.0) * 4096.0 / 40.0));
         uint16_t Kp_CAN = static_cast<uint16_t>(std::round(Kp * 4096.0 / 500.0));
         uint16_t Kd_CAN = static_cast<uint16_t>(std::round(Kd * 4096.0 / 5.0));
@@ -157,20 +157,18 @@ private:
 
     void topic_callback(const std_msgs::msg::Int32::SharedPtr msg)
     {
-        this->init_motor(3,false);
+        this->init_motor(3,true);
         this->enable_all_motors();
-        this->mit_mode_send(3, 0.0, 0.0, 100 * M_PI, 2.00, 2.5);  // 延迟后执行发送
+        this->mit_mode_send(3, 0.0, 1.87, 100 * M_PI, -5.00, 0);  // 延迟后执行发送
     }
 
     void CanSubscribe(const can_msgs::msg::Frame::SharedPtr msg) //从can总线接收到信息，在这里处理
     {
         if(msg->id == 0xC3)
         {
-            int16_t position_raw = (static_cast<int16_t>(msg->data[0]) << 8) | msg->data[1];
-            if (position_raw > 32767) {
-                position_raw -= 65536;  // 转换为有符号整数
-            }
-            double position = 0 - position_raw * M_PI / 32768;  // 转换为弧度。取相反数，因为本末电机很奇怪
+            uint16_t position_raw = (static_cast<uint16_t>(msg->data[0]) << 8) | msg->data[1];
+
+            double position = (2 * M_PI -  position_raw * 2 * M_PI / 32768) > M_PI ? (-position_raw * 2 * M_PI / 32768) : (2 * M_PI -  position_raw * 2 * M_PI / 32768);
 
             // 2. 解析电机转速
             int16_t speed_raw = (static_cast<int16_t>(msg->data[2]) << 8) | msg->data[3];

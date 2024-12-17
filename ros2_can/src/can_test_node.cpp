@@ -8,9 +8,9 @@ int main(int argc, char *argv[])
 {
   rclcpp::init(argc, argv);
   
-  auto can_test_node = std::make_shared<CanNode>("can0");
+  auto can_test_node = std::make_shared<CanNode>("can1");
 
-  auto ros2_socket_can_node = std::make_shared<ros2socketcan>("can0","can0_node");
+  auto ros2_socket_can_node = std::make_shared<ros2socketcan>("can1","can1_node");
   
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 5);
   try 
